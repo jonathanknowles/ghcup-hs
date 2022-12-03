@@ -132,7 +132,8 @@ updateSettings UserSettings{..} Settings{..} =
        noNetwork'  = fromMaybe noNetwork uNoNetwork
        gpgSetting' = fromMaybe gpgSetting uGPGSetting
        platformOverride' = uPlatformOverride <|> platformOverride
-   in Settings cache' metaCache' noVerify' keepDirs' downloader' verbose' urlSource' noNetwork' gpgSetting' noColor platformOverride'
+       mirrors' = fromMaybe mirrors uMirrors
+   in Settings cache' metaCache' noVerify' keepDirs' downloader' verbose' urlSource' noNetwork' gpgSetting' noColor platformOverride' mirrors'
 
 
 

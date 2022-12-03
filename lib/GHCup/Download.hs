@@ -328,19 +328,21 @@ download :: ( MonadReader env m
          -> Maybe FilePath    -- ^ optional filename
          -> Bool              -- ^ whether to read an write etags
          -> Excepts '[DigestError , DownloadFailed, GPGError] m FilePath
-download uri gpgUri eDigest dest mfn etags
+download rawUri gpgUri eDigest dest mfn etags
   | scheme == "https" = dl
   | scheme == "http"  = dl
   | scheme == "file"  = do
-      let destFile' = T.unpack . decUTF8Safe $ view pathL' uri
+      let destFile' = T.unpack . decUTF8Safe $ view pathL' rawUri
       lift $ logDebug $ "using local file: " <> T.pack destFile'
       forM_ eDigest (liftE . flip checkDigest destFile')
       pure destFile'
   | otherwise = throwE $ DownloadFailed (variantFromValue UnsupportedScheme)
 
  where
-  scheme = view (uriSchemeL' % schemeBSL') uri
+  scheme = view (uriSchemeL' % schemeBSL') rawUri
   dl = do
+    Settings{ mirrors } <- lift getSettings
+    let uri = applyMirrors mirrors rawUri
     baseDestFile <- liftE . reThrowAll @_ @_ @'[DownloadFailed] DownloadFailed $ getDestFile uri mfn
     lift $ logInfo $ "downloading: " <> (decUTF8Safe . serializeURIRef') uri <> " as file " <> T.pack baseDestFile
 
@@ -685,3 +687,17 @@ getLastHeader = T.unlines . lastDef [] . filter (\x -> not (null x)) . splitOn [
 
 tmpFile :: FilePath -> FilePath
 tmpFile = (<.> "tmp")
+
+
+applyMirrors :: DownloadMirrors -> URI -> URI
+applyMirrors (DM ms) uri@(URI { uriAuthority = Just (Authority { authorityHost = Host host }) }) =
+  case M.lookup (decUTF8Safe host) ms of
+    Nothing -> uri
+    Just (DownloadMirror auth (Just prefix)) ->
+      uri { uriAuthority = Just auth
+          , uriPath = E.encodeUtf8 $ T.pack ("/" <> T.unpack prefix <> (T.unpack . decUTF8Safe . uriPath $ uri))
+          }
+    Just (DownloadMirror auth Nothing) ->
+      uri { uriAuthority = Just auth }
+applyMirrors _ uri = uri
+

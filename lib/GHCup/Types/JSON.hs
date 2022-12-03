@@ -29,6 +29,7 @@ import           Control.Applicative            ( (<|>) )
 import           Data.Aeson              hiding (Key)
 import           Data.Aeson.TH
 import           Data.Aeson.Types        hiding (Key)
+import           Data.ByteString                ( ByteString )
 import           Data.List.NonEmpty             ( NonEmpty(..) )
 import           Data.Text.Encoding            as E
 import           Data.Versions
@@ -224,6 +225,12 @@ instance FromJSON VersionCmp where
       Right r -> pure r
       Left  e -> fail (MP.errorBundlePretty e)
 
+instance ToJSON ByteString where
+  toJSON = toJSON . E.decodeUtf8With E.lenientDecode
+
+instance FromJSON ByteString where
+  parseJSON = withText "ByteString" $ \t -> pure $ E.encodeUtf8 t
+
 versionCmpToText :: VersionCmp -> T.Text
 versionCmpToText (VR_gt   ver') = "> " <> prettyV ver'
 versionCmpToText (VR_gteq ver') = ">= " <> prettyV ver'
@@ -319,6 +326,12 @@ deriveJSON defaultOptions { fieldLabelModifier = removeLensFieldLabel } ''GHCupI
 deriveToJSON defaultOptions { sumEncoding = ObjectWithSingleField } ''URLSource
 deriveJSON defaultOptions { sumEncoding = ObjectWithSingleField } ''Key
 deriveJSON defaultOptions { fieldLabelModifier = \str' -> maybe str' T.unpack . T.stripPrefix (T.pack "k-") . T.pack . kebab $ str' } ''UserKeyBindings
+deriveJSON defaultOptions { fieldLabelModifier = removeLensFieldLabel, unwrapUnaryRecords = True } ''Port
+deriveJSON defaultOptions { fieldLabelModifier = removeLensFieldLabel, unwrapUnaryRecords = True } ''Host
+deriveJSON defaultOptions { fieldLabelModifier = removeLensFieldLabel } ''UserInfo
+deriveJSON defaultOptions { fieldLabelModifier = \str' -> maybe str' (T.unpack . T.toLower) . T.stripPrefix (T.pack "authority") . T.pack $ str' } ''Authority
+deriveJSON defaultOptions { fieldLabelModifier = removeLensFieldLabel } ''DownloadMirror
+deriveJSON defaultOptions { fieldLabelModifier = removeLensFieldLabel } ''DownloadMirrors
 deriveToJSON defaultOptions { fieldLabelModifier = kebab } ''Settings
 deriveToJSON defaultOptions { fieldLabelModifier = drop 2 . kebab } ''KeyBindings -- move under key-bindings key
 
@@ -355,4 +368,3 @@ instance FromJSON URLSource where
       pure (AddSource r)
 
 deriveJSON defaultOptions { fieldLabelModifier = \str' -> maybe str' T.unpack . T.stripPrefix (T.pack "u-") . T.pack . kebab $ str' } ''UserSettings
-
