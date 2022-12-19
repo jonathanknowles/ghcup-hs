@@ -108,6 +108,7 @@ data Command
   | Prefetch PrefetchCommand
   | GC GCOptions
   | Run RunOptions
+  | PrintAppErrors
 
 
 
@@ -339,4 +340,11 @@ com =
                      (progDesc "Completely remove ghcup from your system"))
            <> commandGroup "Nuclear Commands:"
            <> hidden
+          )
+     <|> subparser
+          (command
+              "print-app-errors"
+               (info (pure PrintAppErrors <**> helper)
+                     (progDesc ""))
+           <> internal
           )

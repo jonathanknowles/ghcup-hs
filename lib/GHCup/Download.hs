@@ -75,7 +75,6 @@ import           System.Exit
 import           System.FilePath
 import           System.IO.Error
 import           System.IO.Temp
-import           Text.PrettyPrint.HughesPJClass ( prettyShow )
 import           URI.ByteString
 
 import qualified Crypto.Hash.SHA256            as SHA256
@@ -172,7 +171,7 @@ getBase uri = do
   mYaml <- if noNetwork && view (uriSchemeL' % schemeBSL') uri /= "file" -- for file://, let it fall through
            then pure Nothing
            else handleIO (\e -> lift (warnCache (displayException e) downloader) >> pure Nothing)
-               . catchE @_ @_ @'[] (\e@(DownloadFailed _) -> lift (warnCache (prettyShow e) downloader) >> pure Nothing)
+               . catchE @_ @_ @'[] (\e@(DownloadFailed _) -> lift (warnCache (prettyHFError e) downloader) >> pure Nothing)
                . fmap Just
                . smartDl
                $ uri
@@ -184,7 +183,7 @@ getBase uri = do
   liftE
     . onE_ (onError actualYaml)
     . lEM' @_ @_ @'[JSONError] (\(displayException -> e) -> JSONDecodeError $ unlines [e, "Consider removing " <> actualYaml <> " manually."])
-    . liftIO 
+    . liftIO
     . Y.decodeFileEither
     $ actualYaml
  where
@@ -386,7 +385,7 @@ download uri gpgUri eDigest dest mfn etags
                   liftE $ flip onException
                        (lift $ hideError doesNotExistErrorType $ recycleFile (tmpFile gpgDestFile))
                    $ catchAllE @_ @'[GPGError, ProcessError, UnsupportedScheme, DownloadFailed] @'[GPGError]
-                        (\e -> if gpgSetting == GPGStrict then throwE (GPGError e) else lift $ logWarn $ T.pack (prettyShow (GPGError e))
+                        (\e -> if gpgSetting == GPGStrict then throwE (GPGError e) else lift $ logWarn $ T.pack (prettyHFError (GPGError e))
                         ) $ do
                       o' <- liftIO getGpgOpts
                       lift $ logDebug $ "downloading: " <> (decUTF8Safe . serializeURIRef') gpgUri' <> " as file " <> T.pack gpgDestFile
