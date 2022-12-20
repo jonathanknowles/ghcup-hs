@@ -156,7 +156,7 @@ allHFError = unlines allErrors
 
 
 prettyHFError :: (Pretty e, HFErrorProject e) => e -> String
-prettyHFError e = (("[GHCup-" <> show (eNum e) <> "] ") <>) . prettyShow $ e
+prettyHFError e = ("[GHCup-" <> show (eNum e) <> "] ") <> prettyShow e
 
 class HFErrorProject a where
   eNum :: a -> Int
